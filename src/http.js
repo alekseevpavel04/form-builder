@@ -77,7 +77,7 @@ export function resolveInside(rootDir, urlPath) {
   return filePath;
 }
 
-export async function serveFile(res, filePath) {
+export async function serveFile(res, filePath, status = 200) {
   let body;
   try {
     body = await fsp.readFile(filePath);
@@ -86,7 +86,7 @@ export async function serveFile(res, filePath) {
     throw err;
   }
   const contentType = CONTENT_TYPES[path.extname(filePath)] || 'application/octet-stream';
-  res.writeHead(200, {
+  res.writeHead(status, {
     'Content-Type': contentType,
     'Content-Length': body.length,
     'Cache-Control': 'no-cache',
