@@ -2,6 +2,7 @@ import assert from 'node:assert/strict';
 import { spawn } from 'node:child_process';
 import fsp from 'node:fs/promises';
 import net from 'node:net';
+import os from 'node:os';
 import path from 'node:path';
 import { after, before, describe, test } from 'node:test';
 import { makeTempDir, rootDir, startApp } from './helpers.js';
@@ -89,6 +90,8 @@ describe('npm start entry point', () => {
     assert.match(output.text, /создана демо-форма/);
     const res = await fetch(`http://127.0.0.1:${port}/admin`);
     assert.equal(res.status, 200);
+    const css = await fetch(`http://127.0.0.1:${port}/static/style.css`);
+    assert.equal(css.status, 200, 'static files are found when started outside the project folder');
     await first.stop();
 
     const second = startServer({ PORT: String(port), DATA_DIR: nested });
@@ -124,6 +127,51 @@ describe('npm start entry point', () => {
     assert.equal(await fsp.readFile(path.join(dir, 'forms.json'), 'utf8'), '{"broken');
   });
 
+  // An answer is acknowledged only after its file is written, so a process
+  // killed in the middle of a burst of writes loses nothing it said it saved.
+  test('acknowledged answers survive a hard kill during writes', async () => {
+    const dir = path.join(dataDir, 'killed');
+    const port = await freePort();
+    const server = startServer({ PORT: String(port), DATA_DIR: dir });
+    await server.waitFor(/Админка:/);
+
+    const acknowledged = [];
+    let firstAck;
+    const firstAckSeen = new Promise((resolve) => (firstAck = resolve));
+    const answers = { name: 'Анна', email: 'a@b.ru', year: '1 курс', format: 'Офис', areas: ['Аналитика'], hours: '10', project: 'я'.repeat(4000) };
+    const requests = Array.from({ length: 40 }, async (_, i) => {
+      const sessionId = `session-kill-${i}`;
+      try {
+        const res = await fetch(`http://127.0.0.1:${port}/api/public/forms/demo/responses`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ sessionId, answers }),
+        });
+        if (res.status === 201) {
+          acknowledged.push(sessionId);
+          firstAck();
+        }
+      } catch {
+        // The connection dies with the process; such a request was never acknowledged.
+      }
+    });
+    await firstAckSeen;
+    server.kill();
+    await Promise.all(requests);
+
+    const stored = JSON.parse(await fsp.readFile(path.join(dir, 'responses.json'), 'utf8'));
+    const storedSessions = new Set(stored.map((r) => r.sessionId));
+    assert.ok(acknowledged.length >= 1);
+    for (const sessionId of acknowledged) assert.ok(storedSessions.has(sessionId), sessionId);
+
+    const restarted = startServer({ PORT: String(port), DATA_DIR: dir });
+    await restarted.waitFor(/Админка:/);
+    const list = await fetch(`http://127.0.0.1:${port}/api/forms/demo/responses`);
+    assert.equal(list.status, 200);
+    assert.equal((await list.json()).responses.length, stored.length);
+    await restarted.stop();
+  });
+
   test('invalid PORT is rejected', async () => {
     const result = await startServer({ PORT: 'abc', DATA_DIR: dataDir }).exited;
     assert.equal(result.code, 1);
@@ -142,7 +190,9 @@ function freePort() {
 }
 
 function startServer(env) {
+  // Started outside the project folder: paths must not depend on the working directory.
   const child = spawn(process.execPath, [path.join(rootDir, 'src', 'server.js')], {
+    cwd: os.tmpdir(),
     env: { ...process.env, ...env },
     stdio: ['ignore', 'pipe', 'pipe'],
   });
@@ -171,6 +221,10 @@ function startServer(env) {
     async stop() {
       child.kill();
       await exited;
+    },
+    // SIGKILL: no exit handlers run, like a crash or a closed terminal.
+    kill() {
+      child.kill('SIGKILL');
     },
   };
 }
