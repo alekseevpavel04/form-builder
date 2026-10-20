@@ -620,7 +620,7 @@ table.drop-off {
 .drop-off th,
 .drop-off td {
   text-align: left;
-  padding: 8px 12px;
+  padding: 8px;
   border-bottom: 1px solid var(--border);
   overflow-wrap: break-word;
 }
@@ -662,6 +662,11 @@ table.drop-off {
 }
 
 @media (min-width: 700px) {
+  .drop-off th,
+  .drop-off td {
+    padding: 8px 12px;
+  }
+
   .drop-off .wide {
     display: table-cell;
   }
