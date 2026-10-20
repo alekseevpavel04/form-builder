@@ -7,8 +7,10 @@ import { el } from '/static/lib/dom.js';
 // options.onSubmit(answers) is called after the browser-side check passes and
 // may return { errors } from the server to show next to fields.
 // options.onFieldCompleted(fieldId) is called when a field is left filled in
-// and valid; the student page counts it for the drop-off analytics.
-export function renderForm(form, { onSubmit, onFieldChange, onFieldCompleted, initialValues = {}, submitLabel = 'Отправить' } = {}) {
+// and valid, onFieldError(fieldId, kind) when an error is shown at a field, and
+// onFieldTime(fieldId, ms) when the student leaves a field they were in; the
+// student page counts them for the drop-off analytics.
+export function renderForm(form, { onSubmit, onFieldChange, onFieldCompleted, onFieldError, onFieldTime, initialValues = {}, submitLabel = 'Отправить' } = {}) {
   const controls = form.fields.map((field) => renderField(field, initialValues[field.id]));
   const message = el('p', { class: 'form-message', role: 'alert', hidden: true });
   const note = el('p', { class: 'form-note', hidden: true });
@@ -29,21 +31,37 @@ export function renderForm(form, { onSubmit, onFieldChange, onFieldCompleted, in
     submitButton,
   ]);
 
+  // The field the student is in and since when. Radio buttons and checkboxes
+  // of one question are one field, moving between them does not leave it.
+  let active = null;
+  const leaveField = () => {
+    if (!active) return;
+    onFieldTime?.(active.control.field.id, Math.round(performance.now() - active.since));
+    active = null;
+  };
+
   for (const control of controls) {
     // Text fields are checked when the student leaves them, choices at once.
     // A field that already shows an error is rechecked on every keystroke so
-    // the error goes away as soon as it is fixed.
-    const check = () => {
-      const { value, error } = validateAnswer(control.field, control.getValue());
+    // the error goes away as soon as it is fixed. Errors seen mid-typing are
+    // not reported: clearing a field to retype it is not an "empty" error.
+    const check = (report = true) => {
+      const { value, error, kind } = validateAnswer(control.field, control.getValue());
       control.setError(error || '');
-      if (!error && value !== undefined) onFieldCompleted?.(control.field.id);
+      if (error && report) onFieldError?.(control.field.id, kind);
+      else if (value !== undefined) onFieldCompleted?.(control.field.id);
     };
-    control.node.addEventListener('focusout', (e) => {
-      if (!control.node.contains(e.relatedTarget)) check();
+    control.node.addEventListener('focusin', () => {
+      if (active?.control !== control) active = { control, since: performance.now() };
     });
-    control.node.addEventListener('change', check);
+    control.node.addEventListener('focusout', (e) => {
+      if (control.node.contains(e.relatedTarget)) return;
+      if (active?.control === control) leaveField();
+      check();
+    });
+    control.node.addEventListener('change', () => check());
     control.node.addEventListener('input', () => {
-      if (control.hasError()) check();
+      if (control.hasError()) check(false);
       progress?.update();
       onFieldChange?.(control.field.id, control.getValue());
     });
@@ -52,6 +70,9 @@ export function renderForm(form, { onSubmit, onFieldChange, onFieldCompleted, in
 
   const controller = {
     element,
+    // The student page calls this when the tab is hidden: a phone often closes
+    // the tab without moving focus, and the field they gave up on matters most.
+    leaveField,
     values() {
       return Object.fromEntries(controls.map((c) => [c.field.id, c.getValue()]));
     },
@@ -88,6 +109,10 @@ export function renderForm(form, { onSubmit, onFieldChange, onFieldCompleted, in
     const answers = controller.values();
     const { errors } = validateAnswers(form.fields, answers);
     controller.showErrors(errors || {});
+    for (const control of controls) {
+      const { error, kind } = validateAnswer(control.field, answers[control.field.id]);
+      if (error) onFieldError?.(control.field.id, kind);
+    }
     if (errors || !onSubmit) return;
     busy = true;
     controller.setBusy(true);

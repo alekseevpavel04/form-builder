@@ -109,6 +109,17 @@ describe('empty answers', () => {
   test('optional field still checks format when filled', () => {
     rejects(field('email', { required: false }), 'anna', /email/);
   });
+
+  test('errors carry their kind for the analytics: empty, format or option', () => {
+    for (const type of Object.keys(FIELD_TYPES)) assert.equal(validateAnswer(field(type, { options }), '').kind, 'empty', type);
+    assert.equal(validateAnswer(field('checkbox', { options }), []).kind, 'empty');
+    assert.equal(validateAnswer(field('email'), 'anna@').kind, 'format');
+    assert.equal(validateAnswer(field('text'), 'а'.repeat(501)).kind, 'format');
+    assert.equal(validateAnswer(field('radio', { options }), ['Офис']).kind, 'format');
+    assert.equal(validateAnswer(field('select', { options }), 'Марс').kind, 'option');
+    assert.equal(validateAnswer(field('checkbox', { options }), ['Офис', 'Марс']).kind, 'option');
+    assert.equal(validateAnswer(field('email'), 'a@b.ru').kind, undefined);
+  });
 });
 
 describe('whole submission', () => {

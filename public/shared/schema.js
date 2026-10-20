@@ -114,17 +114,26 @@ export function validateAnswers(fields, answers) {
   return { values, errors: Object.keys(errors).length === 0 ? null : errors };
 }
 
+// An error also carries its kind: 'empty', 'format' or 'option' (a value not in
+// the list). The kind goes to the drop-off analytics, the text never does.
+export const ERROR_KINDS = ['empty', 'format', 'option'];
+
 export function validateAnswer(field, raw) {
+  const { value, error, kind } = checkAnswer(field, raw);
+  return error ? { error, kind: kind || 'format' } : { value, error: null };
+}
+
+function checkAnswer(field, raw) {
   if (isEmpty(raw)) {
     if (!field.required) return { value: undefined, error: null };
-    if (field.type === 'checkbox') return { error: 'Выберите хотя бы один вариант' };
-    if (CHOICE_TYPES.includes(field.type)) return { error: 'Выберите вариант' };
-    return { error: 'Заполните это поле' };
+    if (field.type === 'checkbox') return { error: 'Выберите хотя бы один вариант', kind: 'empty' };
+    if (CHOICE_TYPES.includes(field.type)) return { error: 'Выберите вариант', kind: 'empty' };
+    return { error: 'Заполните это поле', kind: 'empty' };
   }
 
   if (field.type === 'checkbox') {
     if (!Array.isArray(raw) || !raw.every((v) => typeof v === 'string')) return { error: 'Неверный формат ответа' };
-    if (!raw.every((v) => field.options.includes(v))) return { error: 'Выберите варианты из списка' };
+    if (!raw.every((v) => field.options.includes(v))) return { error: 'Выберите варианты из списка', kind: 'option' };
     // Kept in the order of options, so the table and CSV read the same for everyone.
     return { value: field.options.filter((o) => raw.includes(o)), error: null };
   }
@@ -159,7 +168,7 @@ export function validateAnswer(field, raw) {
       return { value, error: null };
     case 'radio':
     case 'select':
-      if (!field.options.includes(value)) return { error: 'Выберите вариант из списка' };
+      if (!field.options.includes(value)) return { error: 'Выберите вариант из списка', kind: 'option' };
       return { value, error: null };
     default:
       return { error: 'Неизвестный тип поля' };

@@ -83,6 +83,47 @@ describe('analytics', () => {
     assert.equal(data.dropOff.fields[0].label, 'Имя');
   });
 
+  test('errors and time on each field match a hand count', async () => {
+    const formId = await publishedForm();
+    const base = Date.now() - 60 * 60 * 1000;
+    const events = [];
+    const session = (sessionId, steps) => {
+      events.push({ formId, sessionId, type: 'view', fieldId: null, at: new Date(base).toISOString() });
+      steps.forEach(([type, fieldId, extra], i) => {
+        events.push({ formId, sessionId, type, fieldId: fieldId ?? null, ...extra, at: new Date(base + (i + 1) * 1000).toISOString() });
+      });
+    };
+    const error = (fieldId, kind) => ['field_error', fieldId, { error: kind }];
+    const time = (fieldId, seconds) => ['field_time', fieldId, { ms: seconds * 1000 }];
+    const done = (fieldId) => ['field_completed', fieldId];
+
+    session('t1', [['start'], time('a', 4), done('a'), error('b', 'format'), time('b', 20), done('b'), ['submit']]);
+    session('t2', [['start'], time('a', 6), done('a'), error('b', 'format'), error('b', 'empty'), time('b', 10)]);
+    session('t3', [['start'], error('a', 'empty'), error('b', 'empty'), time('a', 1)]);
+    session('t4', [['start'], done('a'), time('a', 2), done('b'), time('c', 30), error('removed-field', 'format')]);
+    session('t5', []);
+    app.store.events.push(...events);
+
+    const { data } = await call('GET', `/api/forms/${formId}/analytics`);
+    const byField = Object.fromEntries(data.dropOff.fields.map((f) => [f.fieldId, f]));
+    // a: reached by t1-t4; error only in t3 (empty); times 4, 6, 1, 2 -> median 3.
+    assert.deepEqual(
+      [byField.a.reached, byField.a.withErrors, byField.a.errorKinds, byField.a.medianSeconds, byField.a.timed],
+      [4, 1, { empty: 1, format: 0, option: 0 }, 3, 4],
+    );
+    // b: reached by t1-t4; errors in t1 (format), t2 (format and empty), t3 (empty); times 20, 10 -> 15.
+    assert.deepEqual(
+      [byField.b.reached, byField.b.withErrors, byField.b.errorKinds, byField.b.medianSeconds, byField.b.timed],
+      [4, 3, { empty: 2, format: 2, option: 0 }, 15, 2],
+    );
+    // c: only t4 entered it, for 30 s. d: nobody got there.
+    assert.deepEqual([byField.c.reached, byField.c.withErrors, byField.c.medianSeconds, byField.c.timed], [1, 0, 30, 1]);
+    assert.deepEqual([byField.d.reached, byField.d.withErrors, byField.d.medianSeconds, byField.d.timed], [0, 0, null, 0]);
+    // Where they stopped is unchanged by the new events: t3 on a, t2 on b, t4 on c.
+    assert.deepEqual(data.dropOff.fields.map((f) => f.sessions), [1, 1, 1, 0]);
+    assert.equal(data.views, 5);
+  });
+
   test('a form without events gives zeros and no median, not NaN', async () => {
     const formId = await publishedForm();
     const { status, data } = await call('GET', `/api/forms/${formId}/analytics`);
@@ -99,7 +140,20 @@ describe('analytics', () => {
         unfinishedRecent: 0,
         medianSeconds: null,
         timedSessions: 0,
-        dropOff: { fields: fields.map((f) => ({ fieldId: f.id, label: f.label, required: f.required, sessions: 0 })), atSubmit: 0 },
+        dropOff: {
+          fields: fields.map((f) => ({
+            fieldId: f.id,
+            label: f.label,
+            required: f.required,
+            sessions: 0,
+            reached: 0,
+            withErrors: 0,
+            errorKinds: { empty: 0, format: 0, option: 0 },
+            medianSeconds: null,
+            timed: 0,
+          })),
+          atSubmit: 0,
+        },
       },
     );
   });
@@ -118,6 +172,19 @@ describe('analytics', () => {
     assert.deepEqual([data.views, data.started, data.submitted, data.unfinished, data.unfinishedRecent], [2, 2, 1, 1, 1]);
     assert.equal(data.timedSessions, 1);
     assert.equal(data.dropOff.fields.find((f) => f.fieldId === 'b').sessions, 1);
+  });
+
+  test('errors and time sent over HTTP show up per field, a repeated error once', async () => {
+    const formId = await publishedForm();
+    const send = (event) => call('POST', `/api/public/forms/${formId}/events`, { sessionId: 'session-http-errors', ...event });
+    await send({ type: 'view' });
+    await send({ type: 'field_error', fieldId: 'b', error: 'format' });
+    await send({ type: 'field_error', fieldId: 'b', error: 'format' });
+    await send({ type: 'field_time', fieldId: 'b', ms: 7500 });
+
+    const { data } = await call('GET', `/api/forms/${formId}/analytics`);
+    const b = data.dropOff.fields.find((f) => f.fieldId === 'b');
+    assert.deepEqual([b.reached, b.withErrors, b.errorKinds.format, b.medianSeconds, b.timed], [1, 1, 1, 7.5, 1]);
   });
 
   test('unknown form gives 404', async () => {

@@ -648,6 +648,13 @@ table.drop-off {
   font-style: italic;
 }
 
+.drop-off .error-kinds {
+  display: block;
+  font-size: 0.8125rem;
+  font-weight: 400;
+  color: var(--muted);
+}
+
 .share {
   display: flex;
   align-items: center;

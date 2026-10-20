@@ -1,3 +1,4 @@
+import { ERROR_KINDS } from '../public/shared/schema.js';
 import { findForm } from './forms.js';
 import { sendJson } from './http.js';
 
@@ -23,7 +24,7 @@ export function computeAnalytics(form, events, now) {
   for (const e of events) {
     let s = sessions.get(e.sessionId);
     if (!s) {
-      s = { startAt: null, submitAt: null, lastAt: 0, completed: new Set() };
+      s = { startAt: null, submitAt: null, lastAt: 0, completed: new Set(), reached: new Set(), errors: new Map(), fieldMs: new Map() };
       sessions.set(e.sessionId, s);
     }
     const at = Date.parse(e.at);
@@ -31,6 +32,11 @@ export function computeAnalytics(form, events, now) {
     if (e.type === 'start') s.startAt = at;
     else if (e.type === 'submit') s.submitAt = at;
     else if (e.type === 'field_completed') s.completed.add(e.fieldId);
+    else if (e.type === 'field_error') {
+      if (!s.errors.has(e.fieldId)) s.errors.set(e.fieldId, new Set());
+      s.errors.get(e.fieldId).add(e.error);
+    } else if (e.type === 'field_time') s.fieldMs.set(e.fieldId, e.ms);
+    if (e.fieldId) s.reached.add(e.fieldId);
   }
 
   const all = [...sessions.values()];
@@ -50,14 +56,16 @@ export function computeAnalytics(form, events, now) {
     unfinishedRecent: unfinished.filter((s) => now - s.lastAt < ACTIVE_WINDOW_MS).length,
     medianSeconds: median(durations),
     timedSessions: durations.length,
-    dropOff: dropOff(form, unfinished),
+    dropOff: dropOff(form, unfinished, all),
   };
 }
 
 // Where unfinished sessions stopped. Only completed fields are known, so the
 // session is put on the field after the furthest completed one in the current
 // form order. A session with every field done stopped at the submit button.
-function dropOff(form, unfinished) {
+// Errors and time on a field are counted over all sessions, finished or not:
+// a field that trips up those who got through also explains those who left.
+function dropOff(form, unfinished, all) {
   const counts = new Array(form.fields.length + 1).fill(0);
   const position = new Map(form.fields.map((f, i) => [f.id, i]));
   for (const s of unfinished) {
@@ -68,8 +76,23 @@ function dropOff(form, unfinished) {
     counts[furthest + 1]++;
   }
   return {
-    fields: form.fields.map((f, i) => ({ fieldId: f.id, label: f.label, required: f.required, sessions: counts[i] })),
+    fields: form.fields.map((f, i) => ({ fieldId: f.id, label: f.label, required: f.required, sessions: counts[i], ...fieldStats(f.id, all) })),
     atSubmit: counts[form.fields.length],
+  };
+}
+
+// reached: sessions that got to the field (entered it, filled it or saw an
+// error at it), the denominator for errors. Time is the first visit only.
+function fieldStats(fieldId, all) {
+  const reached = all.filter((s) => s.reached.has(fieldId));
+  const withErrors = reached.filter((s) => s.errors.has(fieldId));
+  const times = reached.filter((s) => s.fieldMs.has(fieldId)).map((s) => s.fieldMs.get(fieldId) / 1000);
+  return {
+    reached: reached.length,
+    withErrors: withErrors.length,
+    errorKinds: Object.fromEntries(ERROR_KINDS.map((kind) => [kind, withErrors.filter((s) => s.errors.get(fieldId).has(kind)).length])),
+    medianSeconds: median(times),
+    timed: times.length,
   };
 }
 

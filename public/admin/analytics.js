@@ -13,7 +13,11 @@ const DEFINITIONS = [
   ['Незавершённые', 'начали, но не отправили. Сюда попадают и те, кто заполняет прямо сейчас.'],
   ['Где остановились', 'браузер сообщает только о заполненных полях, без их содержимого. Сессия отнесена к полю, которое идёт после самого дальнего заполненного.'],
   ['Медианное время', 'от первого ввода до отправки. Медиана, а не среднее: вкладка, забытая на ночь, не портит число.'],
+  ['Ошибки', 'в скольких сессиях у поля показали ошибку, из сессий, которые до него дошли (заходили в поле, заполнили его или увидели у него ошибку). Считаются все сессии, и отправившие, и ушедшие. Повтор той же ошибки в той же сессии не считается. Вид ошибки: пусто, формат или вариант не из списка, само значение не передаётся.'],
+  ['Время на поле', 'медиана от входа в поле до ухода из него, при первом заходе в сессии. Уходом считается и закрытие или сворачивание вкладки.'],
 ];
+
+const ERROR_KIND_LABELS = { empty: 'пусто', format: 'формат', option: 'не из списка' };
 
 function percent(part, total) {
   return total === 0 ? 0 : Math.round((part / total) * 100);
@@ -71,15 +75,31 @@ function funnel(data) {
   ]);
 }
 
+function errorsCell(f) {
+  const kinds = Object.entries(f.errorKinds)
+    .filter(([, n]) => n > 0)
+    .map(([kind, n]) => `${ERROR_KIND_LABELS[kind]} ${n}`)
+    .join(', ');
+  return el('td', { class: 'num' }, [
+    el('span', { class: 'errors-share', text: `${f.withErrors} из ${f.reached}` }),
+    kinds ? el('span', { class: 'error-kinds', text: kinds }) : null,
+  ]);
+}
+
+function timeCell(f) {
+  if (f.medianSeconds === null) return el('td', { class: 'num muted', text: 'нет данных' });
+  return el('td', { class: 'num', title: `по ${f.timed} ${plural(f.timed, ['сессии', 'сессиям', 'сессиям'])}`, text: formatDuration(f.medianSeconds) });
+}
+
 function dropOff(data) {
   const section = el('section', { class: 'panel' }, [el('h2', { text: 'Где уходят' })]);
-  if (data.unfinished === 0) {
-    section.append(el('p', { class: 'muted', text: 'Незавершённых сессий нет: все, кто начал заполнять, отправили форму.' }));
+  if (data.started === 0) {
+    section.append(el('p', { class: 'muted', text: 'Заполнять форму пока никто не начинал.' }));
     return section;
   }
 
   const rows = [
-    ...data.dropOff.fields.map((f) => ({ label: f.label, required: f.required, sessions: f.sessions })),
+    ...data.dropOff.fields.map((f) => ({ ...f, field: true })),
     { label: 'Заполнили всё, но не отправили', sessions: data.dropOff.atSubmit, last: true },
   ];
   const top = Math.max(...rows.map((r) => r.sessions));
@@ -87,23 +107,31 @@ function dropOff(data) {
     data.unfinishedRecent > 0
       ? ` Из них ${data.unfinishedRecent} ${plural(data.unfinishedRecent, ['была активна', 'были активны', 'были активны'])} за последние 30 минут и, возможно, ещё ${plural(data.unfinishedRecent, ['заполняется', 'заполняются', 'заполняются'])}.`
       : '';
+  const intro =
+    data.unfinished === 0
+      ? 'Незавершённых сессий нет: все, кто начал заполнять, отправили форму.'
+      : `Незавершённых сессий: ${data.unfinished}.${recent}`;
   section.append(
-    el('p', { text: `Незавершённых сессий: ${data.unfinished}.${recent}` }),
+    el('p', { text: intro }),
     el('div', { class: 'table-wrap' }, el('table', { class: 'drop-off' }, [
       el('thead', {}, el('tr', {}, [
         el('th', { scope: 'col', text: 'Остановились на поле' }),
         el('th', { scope: 'col', class: 'num', text: 'Сессий' }),
         el('th', { scope: 'col', text: 'Доля' }),
+        el('th', { scope: 'col', class: 'num', text: 'Ошибки' }),
+        el('th', { scope: 'col', class: 'num', text: 'Время на поле' }),
       ])),
       el('tbody', {}, rows.map((r) =>
         el('tr', { class: [r.sessions > 0 && r.sessions === top ? 'top' : '', r.last ? 'last' : ''].join(' ').trim() || null }, [
           el('td', {}, [r.label, r.required ? el('span', { class: 'required', 'aria-label': 'обязательное', text: ' *' }) : null]),
           el('td', { class: 'num', text: String(r.sessions) }),
           el('td', {}, el('span', { class: 'share' }, [bar(r.sessions, data.unfinished), el('span', { text: `${percent(r.sessions, data.unfinished)}%` })])),
+          r.field ? errorsCell(r) : el('td'),
+          r.field ? timeCell(r) : el('td'),
         ]),
       )),
     ])),
-    el('p', { class: 'muted', text: 'Доля считается от незавершённых сессий. Браузер сообщает только о заполненных полях, поэтому сессия отнесена к полю, которое идёт после последнего заполненного. Звёздочкой отмечены обязательные поля.' }),
+    el('p', { class: 'muted', text: 'Доля считается от незавершённых сессий. Браузер сообщает только о заполненных полях, поэтому сессия отнесена к полю, которое идёт после последнего заполненного. Ошибки считаются по всем сессиям, которые дошли до поля, время на поле это медиана первого захода. Звёздочкой отмечены обязательные поля.' }),
   );
   return section;
 }

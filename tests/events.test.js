@@ -55,6 +55,64 @@ describe('events', () => {
     assert.ok(!onDisk.includes('Mozilla'));
   });
 
+  test('field_error stores only the kind of error and field_time only the milliseconds', async () => {
+    const id = await publishedForm();
+    const sessionId = 'session-field-events';
+    const error = await send(id, { sessionId, type: 'field_error', fieldId: 'email', error: 'format', value: 'anna@секрет', message: 'Введите email' });
+    assert.equal(error.status, 201);
+    assert.equal((await send(id, { sessionId, type: 'field_time', fieldId: 'email', ms: 4200, value: 'anna@секрет' })).status, 201);
+
+    const stored = eventsOf(id);
+    assert.deepEqual(Object.keys(stored[0]).sort(), ['at', 'error', 'fieldId', 'formId', 'sessionId', 'type']);
+    assert.deepEqual(Object.keys(stored[1]).sort(), ['at', 'fieldId', 'formId', 'ms', 'sessionId', 'type']);
+    assert.deepEqual([stored[0].error, stored[1].ms], ['format', 4200]);
+    const onDisk = await fsp.readFile(path.join(app.dataDir, 'events.json'), 'utf8');
+    assert.ok(!onDisk.includes('секрет'));
+    assert.ok(!onDisk.includes('Введите email'));
+  });
+
+  test('the same error in a session counts once, another kind of error counts, a field is timed once', async () => {
+    const id = await publishedForm();
+    const sessionId = 'session-repeats';
+    const statuses = [];
+    for (const event of [
+      { type: 'field_error', fieldId: 'email', error: 'format' },
+      { type: 'field_error', fieldId: 'email', error: 'format' },
+      { type: 'field_error', fieldId: 'email', error: 'empty' },
+      { type: 'field_error', fieldId: 'name', error: 'format' },
+      { type: 'field_time', fieldId: 'email', ms: 3000 },
+      { type: 'field_time', fieldId: 'email', ms: 9000 },
+    ]) {
+      statuses.push((await send(id, { sessionId, ...event })).status);
+    }
+    assert.deepEqual(statuses, [201, 200, 201, 201, 201, 200]);
+    assert.deepEqual(eventsOf(id).map((e) => [e.type, e.fieldId, e.error ?? e.ms]), [
+      ['field_error', 'email', 'format'],
+      ['field_error', 'email', 'empty'],
+      ['field_error', 'name', 'format'],
+      ['field_time', 'email', 3000],
+    ]);
+  });
+
+  test('field events with a bad kind, time or field are rejected', async () => {
+    const id = await publishedForm();
+    const sessionId = 'session-bad-field-events';
+    const bad = [
+      { type: 'field_error', fieldId: 'email' },
+      { type: 'field_error', fieldId: 'email', error: 'Введите email' },
+      { type: 'field_error', error: 'format' },
+      { type: 'field_error', fieldId: 'salary', error: 'format' },
+      { type: 'field_time', fieldId: 'email' },
+      { type: 'field_time', fieldId: 'email', ms: -1 },
+      { type: 'field_time', fieldId: 'email', ms: 1.5 },
+      { type: 'field_time', fieldId: 'email', ms: '3000' },
+      { type: 'field_time', fieldId: 'email', ms: 24 * 60 * 60 * 1000 + 1 },
+      { type: 'field_time', ms: 3000 },
+    ];
+    for (const event of bad) assert.equal((await send(id, { sessionId, ...event })).status, 400, JSON.stringify(event));
+    assert.equal(eventsOf(id).length, 0);
+  });
+
   test('a repeated event from the same session is stored once', async () => {
     const id = await publishedForm();
     const event = { sessionId: 'session-reload', type: 'view' };

@@ -47,6 +47,8 @@ async function start() {
       saveDraft(formId, session, view.values());
     },
     onFieldCompleted: tracker.fieldCompleted,
+    onFieldError: tracker.fieldError,
+    onFieldTime: tracker.fieldTime,
     async onSubmit(answers) {
       const result = await api('POST', `/api/public/forms/${encodeURIComponent(formId)}/responses`, { sessionId, answers });
       if (result.ok) {
@@ -69,6 +71,9 @@ async function start() {
     view.showNote('Мы сохранили то, что вы ввели в прошлый раз. Можно продолжить с того же места.');
   }
   app.replaceChildren(view.element);
+  document.addEventListener('visibilitychange', () => {
+    if (document.visibilityState === 'hidden') view.leaveField();
+  });
 }
 
 start();
