@@ -11,8 +11,10 @@ import { el } from '/static/lib/dom.js';
 export function renderForm(form, { onSubmit, onFieldChange, onFieldCompleted, initialValues = {}, submitLabel = 'Отправить' } = {}) {
   const controls = form.fields.map((field) => renderField(field, initialValues[field.id]));
   const message = el('p', { class: 'form-message', role: 'alert', hidden: true });
+  const note = el('p', { class: 'form-note', hidden: true });
   const submitButton = el('button', { type: 'submit', class: 'btn btn-primary btn-wide', text: submitLabel });
   const hasRequired = form.fields.some((f) => f.required);
+  const progress = hasRequired ? renderProgress(controls.filter((c) => c.field.required)) : null;
 
   const element = el('form', { class: 'form', novalidate: true }, [
     el('header', { class: 'form-header' }, [
@@ -20,6 +22,8 @@ export function renderForm(form, { onSubmit, onFieldChange, onFieldCompleted, in
       form.description ? el('p', { class: 'form-description', text: form.description }) : null,
       hasRequired ? el('p', { class: 'muted', text: '* обязательное поле' }) : null,
     ]),
+    note,
+    progress?.node,
     ...controls.map((c) => c.node),
     message,
     submitButton,
@@ -40,9 +44,11 @@ export function renderForm(form, { onSubmit, onFieldChange, onFieldCompleted, in
     control.node.addEventListener('change', check);
     control.node.addEventListener('input', () => {
       if (control.hasError()) check();
+      progress?.update();
       onFieldChange?.(control.field.id, control.getValue());
     });
   }
+  progress?.update();
 
   const controller = {
     element,
@@ -64,6 +70,10 @@ export function renderForm(form, { onSubmit, onFieldChange, onFieldCompleted, in
     showMessage(text) {
       message.textContent = text;
       message.hidden = !text;
+    },
+    showNote(text) {
+      note.textContent = text;
+      note.hidden = !text;
     },
     setBusy(busy) {
       submitButton.disabled = busy;
@@ -91,6 +101,32 @@ export function renderForm(form, { onSubmit, onFieldChange, onFieldCompleted, in
   });
 
   return controller;
+}
+
+// Counts required fields that are filled in and pass the check: a half-typed
+// email is not done yet. Optional fields do not count, they never block sending.
+function renderProgress(required) {
+  const text = el('span', { class: 'progress-text' });
+  const fill = el('span', { class: 'bar-fill' });
+  const node = el('div', { class: 'form-progress', role: 'status', 'aria-live': 'polite' }, [
+    text,
+    el('span', { class: 'bar', 'aria-hidden': 'true' }, fill),
+  ]);
+  return {
+    node,
+    update() {
+      const done = required.filter((c) => {
+        const { value, error } = validateAnswer(c.field, c.getValue());
+        return !error && value !== undefined;
+      }).length;
+      const next = done === required.length
+        ? `Все обязательные поля заполнены (${done} из ${required.length})`
+        : `Заполнено обязательных полей: ${done} из ${required.length}`;
+      // Rewriting the same text would make a screen reader repeat it on every key.
+      if (text.textContent !== next) text.textContent = next;
+      fill.style.width = `${Math.round((done / required.length) * 100)}%`;
+    },
+  };
 }
 
 function renderField(field, initial) {

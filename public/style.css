@@ -242,6 +242,37 @@ select:focus,
   background: var(--danger-bg);
 }
 
+.form-note {
+  margin: 0;
+  padding: 10px 12px;
+  border-radius: var(--radius);
+  color: var(--ok);
+  background: var(--ok-bg);
+}
+
+/* Stays at the top of the screen while the student scrolls a long form on a phone. */
+.form-progress {
+  position: sticky;
+  top: 0;
+  z-index: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  margin: 0 -4px;
+  padding: 8px 4px;
+  background: var(--card);
+  font-size: 0.9rem;
+  color: var(--muted);
+}
+
+/* Focus on the first error scrolls the input into view; without the margin the
+   sticky progress bar would cover the field label above it. */
+.form input,
+.form select,
+.form textarea {
+  scroll-margin-top: 112px;
+}
+
 .form-message.ok {
   color: var(--ok);
   background: var(--ok-bg);
@@ -518,7 +549,7 @@ table.responses {
   white-space: nowrap;
 }
 
-/* Analytics */
+/* Analytics. .bar is also the progress bar of the student form. */
 
 .panel {
   background: var(--card);
