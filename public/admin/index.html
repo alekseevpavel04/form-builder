@@ -3,9 +3,20 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>Формы: админка</title>
+  <title>Формы</title>
+  <link rel="stylesheet" href="/static/style.css">
+  <script type="module" src="/static/admin/list.js"></script>
 </head>
-<body>
-  <h1>Формы</h1>
+<body class="admin">
+  <main class="admin-main">
+    <header class="page-header">
+      <div class="title-row">
+        <h1>Формы</h1>
+        <button type="button" id="create" class="btn btn-primary">Новая форма</button>
+      </div>
+    </header>
+    <p id="message" class="form-message" role="alert" hidden></p>
+    <div id="list"><p class="muted">Загружаем…</p></div>
+  </main>
 </body>
 </html>
