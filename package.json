@@ -1,0 +1,14 @@
+{
+  "name": "form-builder",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Response forms: a manager builds and publishes a form, students fill it in, the manager sees answers and where students drop off",
+  "type": "module",
+  "engines": {
+    "node": ">=20"
+  },
+  "scripts": {
+    "start": "node src/server.js",
+    "test": "node --test"
+  }
+}
