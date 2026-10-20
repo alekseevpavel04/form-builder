@@ -1,5 +1,6 @@
 import http from 'node:http';
 import path from 'node:path';
+import { getAnalytics } from './analytics.js';
 import { receiveEvent } from './events.js';
 import { closeForm, createForm, getForm, getPublicForm, listForms, publishForm, updateForm } from './forms.js';
 import { HttpError, redirect, resolveInside, sendJson, sendText, serveFile } from './http.js';
@@ -40,6 +41,7 @@ export function createApp({ store, publicDir }) {
     route('POST', '/api/forms/:id/close', closeForm),
     route('GET', '/api/forms/:id/responses', listResponses),
     route('GET', '/api/forms/:id/responses.csv', downloadCsv),
+    route('GET', '/api/forms/:id/analytics', getAnalytics),
 
     route('GET', '/api/public/forms/:id', getPublicForm),
     route('POST', '/api/public/forms/:id/responses', submitResponse),
