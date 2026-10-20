@@ -33,6 +33,37 @@ describe('routing and static files', () => {
     }
   });
 
+  test('form pages answer 404 for an unknown form', async () => {
+    for (const [p, status] of [
+      ['/admin/forms/demo', 200],
+      ['/admin/forms/demo/responses', 200],
+      ['/f/demo', 200],
+      ['/admin/forms/nope', 404],
+      ['/admin/forms/nope/responses', 404],
+    ]) {
+      const res = await fetch(app.baseUrl + p);
+      assert.equal(res.status, status, p);
+      assert.match(res.headers.get('content-type'), /text\/html/, p);
+    }
+  });
+
+  test('browser modules are served as javascript', async () => {
+    for (const p of ['/static/shared/schema.js', '/static/form/render.js', '/static/admin/builder.js', '/static/style.css']) {
+      const res = await fetch(app.baseUrl + p);
+      assert.equal(res.status, 200, p);
+      assert.match(res.headers.get('content-type'), p.endsWith('.css') ? /text\/css/ : /text\/javascript/, p);
+    }
+  });
+
+  // Everything a manager or student typed must reach the page as text.
+  test('browser code never assigns HTML', async () => {
+    const files = await fsp.readdir(path.join(rootDir, 'public'), { recursive: true });
+    for (const file of files.filter((f) => f.endsWith('.js'))) {
+      const source = await fsp.readFile(path.join(rootDir, 'public', file), 'utf8');
+      assert.doesNotMatch(source, /innerHTML|outerHTML|insertAdjacentHTML|document\.write/, file);
+    }
+  });
+
   test('unknown path gives 404', async () => {
     const res = await fetch(app.baseUrl + '/nope');
     assert.equal(res.status, 404);
