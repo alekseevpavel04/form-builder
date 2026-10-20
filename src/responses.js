@@ -1,9 +1,8 @@
 import crypto from 'node:crypto';
 import { validateAnswers } from '../public/shared/schema.js';
+import { isSessionId, recordEvent } from './events.js';
 import { BODY_LIMIT_BYTES, findForm, findPublishedForm } from './forms.js';
 import { HttpError, readJson, sendJson, sendText } from './http.js';
-
-const SESSION_ID = /^[A-Za-z0-9-]{8,64}$/;
 
 // Russian Excel opens a semicolon-separated file with a BOM correctly on double
 // click; with commas it puts the whole row into one column.
@@ -20,7 +19,7 @@ export async function submitResponse({ store, req, res, params }) {
 
   // The browser sends its session id with the answers. A second submit from the
   // same session (double click, retry after a lost response) is not stored twice.
-  const sessionId = typeof body.sessionId === 'string' && SESSION_ID.test(body.sessionId) ? body.sessionId : null;
+  const sessionId = isSessionId(body.sessionId) ? body.sessionId : null;
   if (sessionId && store.responses.some((r) => r.formId === form.id && r.sessionId === sessionId)) {
     sendJson(res, 200, { ok: true, duplicate: true });
     return;
@@ -34,6 +33,7 @@ export async function submitResponse({ store, req, res, params }) {
     answers: values,
   });
   await store.save('responses');
+  if (sessionId) await recordEvent(store, { formId: form.id, sessionId, type: 'submit' });
   sendJson(res, 201, { ok: true });
 }
 

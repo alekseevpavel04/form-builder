@@ -1,11 +1,11 @@
 import { api } from '/static/lib/api.js';
-import { el, randomId } from '/static/lib/dom.js';
+import { el } from '/static/lib/dom.js';
 import { renderForm } from '/static/form/render.js';
+import { clearSession, loadSession } from '/static/form/session.js';
+import { createTracker } from '/static/form/track.js';
 
 const app = document.getElementById('app');
 const formId = decodeURIComponent(location.pathname.split('/').pop());
-// Sent with the answers so a double click or a retry is stored once.
-const sessionId = randomId('s');
 
 function showNotice(title, text) {
   document.title = title;
@@ -22,10 +22,18 @@ async function start() {
 
   const { form } = data;
   document.title = form.title;
+  // Sent with the answers too, so a double click or a retry is stored once.
+  const { sessionId } = loadSession(formId);
+  const tracker = createTracker(formId, sessionId);
+  tracker.view();
+
   const view = renderForm(form, {
+    onFieldChange: tracker.start,
+    onFieldCompleted: tracker.fieldCompleted,
     async onSubmit(answers) {
       const result = await api('POST', `/api/public/forms/${encodeURIComponent(formId)}/responses`, { sessionId, answers });
       if (result.ok) {
+        clearSession(formId);
         showNotice('Ответ отправлен', 'Спасибо! Ваши ответы получены.');
         window.scrollTo(0, 0);
         return null;

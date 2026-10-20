@@ -6,7 +6,9 @@ import { el } from '/static/lib/dom.js';
 //
 // options.onSubmit(answers) is called after the browser-side check passes and
 // may return { errors } from the server to show next to fields.
-export function renderForm(form, { onSubmit, onFieldChange, initialValues = {}, submitLabel = 'Отправить' } = {}) {
+// options.onFieldCompleted(fieldId) is called when a field is left filled in
+// and valid; the student page counts it for the drop-off analytics.
+export function renderForm(form, { onSubmit, onFieldChange, onFieldCompleted, initialValues = {}, submitLabel = 'Отправить' } = {}) {
   const controls = form.fields.map((field) => renderField(field, initialValues[field.id]));
   const message = el('p', { class: 'form-message', role: 'alert', hidden: true });
   const submitButton = el('button', { type: 'submit', class: 'btn btn-primary btn-wide', text: submitLabel });
@@ -27,7 +29,11 @@ export function renderForm(form, { onSubmit, onFieldChange, initialValues = {}, 
     // Text fields are checked when the student leaves them, choices at once.
     // A field that already shows an error is rechecked on every keystroke so
     // the error goes away as soon as it is fixed.
-    const check = () => control.setError(validateAnswer(control.field, control.getValue()).error || '');
+    const check = () => {
+      const { value, error } = validateAnswer(control.field, control.getValue());
+      control.setError(error || '');
+      if (!error && value !== undefined) onFieldCompleted?.(control.field.id);
+    };
     control.node.addEventListener('focusout', (e) => {
       if (!control.node.contains(e.relatedTarget)) check();
     });
