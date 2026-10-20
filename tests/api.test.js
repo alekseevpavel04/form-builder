@@ -124,6 +124,41 @@ describe('forms', () => {
     assert.equal(table.data.responses[0].answers.format, 'Офис');
   });
 
+  test('a copy is a new draft with its own link, without answers and events', async () => {
+    const id = await publishedForm();
+    await call('POST', `/api/public/forms/${id}/responses`, { sessionId: 'session-before-copy', answers: { name: 'Анна', email: 'a@b.ru' } });
+    await call('POST', `/api/public/forms/${id}/events`, { sessionId: 'session-before-copy', type: 'view' });
+    const original = (await call('GET', `/api/forms/${id}`)).data.form;
+
+    const copied = await call('POST', `/api/forms/${id}/copy`);
+    assert.equal(copied.status, 201);
+    const copy = copied.data.form;
+    assert.notEqual(copy.id, id);
+    assert.match(copy.id, /^[a-z2-9]{8}$/);
+    assert.equal(copy.title, 'Копия: Стажировка');
+    assert.equal(copy.status, 'draft');
+    assert.deepEqual(copy.fields, original.fields);
+    assert.deepEqual(copy.removedFields, []);
+
+    assert.equal((await call('GET', `/api/forms/${copy.id}`)).data.responseCount, 0);
+    assert.equal((await call('GET', `/api/forms/${copy.id}/responses`)).data.responses.length, 0);
+    assert.equal((await call('GET', `/api/forms/${copy.id}/analytics`)).data.views, 0);
+    assert.equal((await call('GET', `/api/public/forms/${copy.id}`)).status, 404);
+
+    // Editing the copy leaves the original alone.
+    await call('PUT', `/api/forms/${copy.id}`, { title: 'Осенняя стажировка', fields: copy.fields.slice(0, 1) });
+    const after = (await call('GET', `/api/forms/${id}`)).data;
+    assert.deepEqual([after.form.title, after.form.fields.length, after.form.status, after.responseCount], ['Стажировка', 4, 'published', 1]);
+  });
+
+  test('a copy of a long title stays within the title limit', async () => {
+    const created = await call('POST', '/api/forms', { title: 'я'.repeat(200), fields });
+    const copy = (await call('POST', `/api/forms/${created.data.form.id}/copy`)).data.form;
+    assert.equal(copy.title.length, 200);
+    assert.ok(copy.title.startsWith('Копия: я'));
+    assert.equal((await call('POST', '/api/forms/nosuchform/copy')).status, 404);
+  });
+
   test('field type cannot change once the field exists', async () => {
     const id = await publishedForm();
     const changed = fields.map((f) => (f.id === 'name' ? { ...f, type: 'textarea' } : f));

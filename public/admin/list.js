@@ -37,11 +37,27 @@ function renderForms(forms) {
             el('a', { href: `/admin/forms/${form.id}/responses`, text: `Ответы (${form.responseCount})` }),
             el('a', { href: `/admin/forms/${form.id}/analytics`, text: 'Аналитика' }),
             form.status === 'published' ? el('a', { href: publicLink(form.id), target: '_blank', text: 'Открыть форму' }) : null,
+            copyButton(form),
           ]),
         ]),
       ),
     ),
   );
+}
+
+function copyButton(form) {
+  const button = el('button', { type: 'button', class: 'btn btn-small', text: 'Сделать копию' });
+  button.addEventListener('click', async () => {
+    button.disabled = true;
+    const { ok, data } = await api('POST', `/api/forms/${encodeURIComponent(form.id)}/copy`);
+    if (ok) {
+      location.href = `/admin/forms/${data.form.id}`;
+      return;
+    }
+    showMessage(data.error);
+    button.disabled = false;
+  });
+  return button;
 }
 
 createButton.addEventListener('click', async () => {

@@ -1,5 +1,5 @@
 import crypto from 'node:crypto';
-import { validateFormDefinition } from '../public/shared/schema.js';
+import { LIMITS, validateFormDefinition } from '../public/shared/schema.js';
 import { HttpError, readJson, sendJson } from './http.js';
 
 export const BODY_LIMIT_BYTES = 1024 * 1024;
@@ -56,6 +56,28 @@ export async function createForm({ store, req, res }) {
   const form = {
     id: newFormId(store),
     ...definition,
+    status: 'draft',
+    removedFields: [],
+    createdAt: now,
+    updatedAt: now,
+  };
+  store.forms.push(form);
+  await store.save('forms');
+  sendJson(res, 201, { form });
+}
+
+const COPY_PREFIX = 'Копия: ';
+
+// A copy is a new draft with its own link. Answers and events stay with the
+// original: they belong to the students who filled in that form.
+export async function copyForm({ store, res, params }) {
+  const source = findForm(store, params.id);
+  const now = new Date().toISOString();
+  const form = {
+    id: newFormId(store),
+    title: COPY_PREFIX + source.title.slice(0, LIMITS.title - COPY_PREFIX.length),
+    description: source.description,
+    fields: structuredClone(source.fields),
     status: 'draft',
     removedFields: [],
     createdAt: now,

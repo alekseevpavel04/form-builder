@@ -410,6 +410,7 @@ select:focus,
 .form-card-links {
   display: flex;
   flex-wrap: wrap;
+  align-items: center;
   gap: 4px 16px;
 }
 

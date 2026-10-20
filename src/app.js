@@ -2,7 +2,7 @@ import http from 'node:http';
 import path from 'node:path';
 import { getAnalytics } from './analytics.js';
 import { receiveEvent } from './events.js';
-import { closeForm, createForm, getForm, getPublicForm, listForms, publishForm, updateForm } from './forms.js';
+import { closeForm, copyForm, createForm, getForm, getPublicForm, listForms, publishForm, updateForm } from './forms.js';
 import { HttpError, redirect, resolveInside, sendJson, sendText, serveFile } from './http.js';
 import { downloadCsv, listResponses, submitResponse } from './responses.js';
 
@@ -40,6 +40,7 @@ export function createApp({ store, publicDir }) {
     route('PUT', '/api/forms/:id', updateForm),
     route('POST', '/api/forms/:id/publish', publishForm),
     route('POST', '/api/forms/:id/close', closeForm),
+    route('POST', '/api/forms/:id/copy', copyForm),
     route('GET', '/api/forms/:id/responses', listResponses),
     route('GET', '/api/forms/:id/responses.csv', downloadCsv),
     route('GET', '/api/forms/:id/analytics', getAnalytics),
