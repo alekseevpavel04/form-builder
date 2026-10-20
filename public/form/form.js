@@ -12,11 +12,22 @@ function showNotice(title, text) {
   app.replaceChildren(el('section', { class: 'notice' }, [el('h1', { text: title }), el('p', { text })]));
 }
 
+// The page has its own words for a closed or missing form: the API text
+// repeats the heading and does not tell the student what to do next.
+const UNAVAILABLE = {
+  410: ['Форма закрыта', 'Ответы больше не принимаются. Если вы не успели, напишите тем, кто прислал вам ссылку.'],
+  404: ['Форма не найдена', 'Проверьте ссылку: возможно, в ней опечатка или форму ещё не опубликовали.'],
+};
+
+function showUnavailable(status, error) {
+  const [title, text] = UNAVAILABLE[status] || ['Форма недоступна', error];
+  showNotice(title, text);
+}
+
 async function start() {
   const { ok, status, data } = await api('GET', `/api/public/forms/${encodeURIComponent(formId)}`);
   if (!ok) {
-    const title = status === 410 ? 'Форма закрыта' : status === 404 ? 'Форма не найдена' : 'Форма недоступна';
-    showNotice(title, data.error);
+    showUnavailable(status, data.error);
     return;
   }
 
@@ -46,7 +57,7 @@ async function start() {
       }
       if (result.status === 410 || result.status === 404) {
         clearSession(formId);
-        showNotice('Форма закрыта', result.data.error);
+        showUnavailable(result.status, result.data.error);
         return null;
       }
       if (result.data.errors) return { errors: result.data.errors };
