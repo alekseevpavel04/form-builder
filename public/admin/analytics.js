@@ -75,20 +75,36 @@ function funnel(data) {
   ]);
 }
 
-function errorsCell(f) {
-  const kinds = Object.entries(f.errorKinds)
+function errorKinds(f) {
+  return Object.entries(f.errorKinds)
     .filter(([, n]) => n > 0)
     .map(([kind, n]) => `${ERROR_KIND_LABELS[kind]} ${n}`)
     .join(', ');
-  return el('td', { class: 'num' }, [
-    el('span', { class: 'errors-share', text: `${f.withErrors} из ${f.reached}` }),
+}
+
+const fieldTime = (f) => (f.medianSeconds === null ? 'нет данных' : formatDuration(f.medianSeconds));
+
+function errorsCell(f) {
+  const kinds = errorKinds(f);
+  return el('td', { class: 'num wide' }, [
+    el('span', { text: `${f.withErrors} из ${f.reached}` }),
     kinds ? el('span', { class: 'error-kinds', text: kinds }) : null,
   ]);
 }
 
 function timeCell(f) {
-  if (f.medianSeconds === null) return el('td', { class: 'num muted', text: 'нет данных' });
-  return el('td', { class: 'num', title: `по ${f.timed} ${plural(f.timed, ['сессии', 'сессиям', 'сессиям'])}`, text: formatDuration(f.medianSeconds) });
+  const attrs = f.medianSeconds === null ? { class: 'num wide muted' } : { class: 'num wide', title: `по ${f.timed} ${plural(f.timed, ['сессии', 'сессиям', 'сессиям'])}` };
+  return el('td', { ...attrs, text: fieldTime(f) });
+}
+
+// On a phone five columns do not fit, and columns hidden behind a sideways
+// scroll go unnoticed, so errors and time move under the field name.
+function narrowStats(f) {
+  const kinds = errorKinds(f);
+  return el('span', {
+    class: 'field-stats',
+    text: `Ошибки ${f.withErrors} из ${f.reached}${kinds ? ` (${kinds})` : ''}, время на поле ${fieldTime(f)}`,
+  });
 }
 
 function dropOff(data) {
@@ -118,16 +134,20 @@ function dropOff(data) {
         el('th', { scope: 'col', text: 'Остановились на поле' }),
         el('th', { scope: 'col', class: 'num', text: 'Сессий' }),
         el('th', { scope: 'col', text: 'Доля' }),
-        el('th', { scope: 'col', class: 'num', text: 'Ошибки' }),
-        el('th', { scope: 'col', class: 'num', text: 'Время на поле' }),
+        el('th', { scope: 'col', class: 'num wide', text: 'Ошибки' }),
+        el('th', { scope: 'col', class: 'num wide', text: 'Время на поле' }),
       ])),
       el('tbody', {}, rows.map((r) =>
         el('tr', { class: [r.sessions > 0 && r.sessions === top ? 'top' : '', r.last ? 'last' : ''].join(' ').trim() || null }, [
-          el('td', {}, [r.label, r.required ? el('span', { class: 'required', 'aria-label': 'обязательное', text: ' *' }) : null]),
+          el('td', {}, [
+            r.label,
+            r.required ? el('span', { class: 'required', 'aria-label': 'обязательное', text: ' *' }) : null,
+            r.field ? narrowStats(r) : null,
+          ]),
           el('td', { class: 'num', text: String(r.sessions) }),
           el('td', {}, el('span', { class: 'share' }, [bar(r.sessions, data.unfinished), el('span', { text: `${percent(r.sessions, data.unfinished)}%` })])),
-          r.field ? errorsCell(r) : el('td'),
-          r.field ? timeCell(r) : el('td'),
+          r.field ? errorsCell(r) : el('td', { class: 'wide' }),
+          r.field ? timeCell(r) : el('td', { class: 'wide' }),
         ]),
       )),
     ])),

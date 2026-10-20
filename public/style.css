@@ -649,11 +649,26 @@ table.drop-off {
   font-style: italic;
 }
 
-.drop-off .error-kinds {
+.drop-off .error-kinds,
+.drop-off .field-stats {
   display: block;
   font-size: 0.8125rem;
   font-weight: 400;
   color: var(--muted);
+}
+
+.drop-off .wide {
+  display: none;
+}
+
+@media (min-width: 700px) {
+  .drop-off .wide {
+    display: table-cell;
+  }
+
+  .drop-off .field-stats {
+    display: none;
+  }
 }
 
 .share {
