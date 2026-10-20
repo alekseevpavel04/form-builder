@@ -16,6 +16,7 @@
 - `tests/`: тесты `*.test.js`; `helpers.js` поднимает приложение на свободном порту с данными во временной папке.
 - `data/`: `forms.json`, `responses.json`, `events.json`. Создаётся при старте, путь меняется переменной `DATA_DIR` (нужна тестам).
 - `.github/workflows/ci.yml`: `npm test` и запуск на `PORT` под Linux, Windows, macOS на Node 20, 22, 24.
+- `docs/screenshots/`: скриншоты для README, сняты на демо-форме. После изменения интерфейса, который на них виден, снимаются заново.
 
 ## Инварианты
 
