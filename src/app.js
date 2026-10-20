@@ -31,6 +31,7 @@ export function createApp({ store, publicDir }) {
     route('GET', '/admin', ({ res }) => sendPage(res, ['admin', 'index.html'])),
     route('GET', '/admin/forms/:id', adminFormPage('builder.html')),
     route('GET', '/admin/forms/:id/responses', adminFormPage('responses.html')),
+    route('GET', '/admin/forms/:id/analytics', adminFormPage('analytics.html')),
     route('GET', '/f/:id', studentPage),
 
     route('GET', '/api/forms', listForms),

@@ -37,9 +37,11 @@ describe('routing and static files', () => {
     for (const [p, status] of [
       ['/admin/forms/demo', 200],
       ['/admin/forms/demo/responses', 200],
+      ['/admin/forms/demo/analytics', 200],
       ['/f/demo', 200],
       ['/admin/forms/nope', 404],
       ['/admin/forms/nope/responses', 404],
+      ['/admin/forms/nope/analytics', 404],
     ]) {
       const res = await fetch(app.baseUrl + p);
       assert.equal(res.status, status, p);

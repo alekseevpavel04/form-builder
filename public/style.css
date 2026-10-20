@@ -517,3 +517,143 @@ table.responses {
 .responses .nowrap {
   white-space: nowrap;
 }
+
+/* Analytics */
+
+.panel {
+  background: var(--card);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 16px;
+  margin-bottom: 16px;
+}
+
+.panel h2 {
+  margin-top: 0;
+}
+
+.panel p {
+  margin: 8px 0 0;
+}
+
+.panel .table-wrap {
+  margin-top: 12px;
+}
+
+.funnel {
+  display: grid;
+  gap: 12px;
+  margin-bottom: 16px;
+}
+
+/* On a phone the bar goes under the label so the numbers keep their width. */
+.funnel-row {
+  display: grid;
+  grid-template-columns: 1fr auto;
+  gap: 4px 12px;
+  align-items: center;
+}
+
+.funnel-row .bar {
+  grid-column: 1 / -1;
+  grid-row: 2;
+}
+
+.funnel-value {
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+
+.bar {
+  display: block;
+  height: 12px;
+  background: var(--bg);
+  border-radius: 6px;
+  overflow: hidden;
+}
+
+.bar-fill {
+  display: block;
+  height: 100%;
+  background: var(--accent);
+}
+
+table.drop-off {
+  border-collapse: collapse;
+  width: 100%;
+}
+
+/* break-word, not anywhere: anywhere lets the browser squeeze a column below
+   the width of one word, and headers split into "Се-сси-й" on a phone. */
+.drop-off th,
+.drop-off td {
+  text-align: left;
+  padding: 8px 12px;
+  border-bottom: 1px solid var(--border);
+  overflow-wrap: break-word;
+}
+
+.drop-off th {
+  background: var(--bg);
+  font-weight: 600;
+}
+
+.drop-off .num {
+  text-align: right;
+  white-space: nowrap;
+  font-variant-numeric: tabular-nums;
+}
+
+.drop-off tr.top td {
+  background: var(--danger-bg);
+  font-weight: 600;
+}
+
+.drop-off tr.top .bar-fill {
+  background: var(--danger);
+}
+
+.drop-off tr.last td:first-child {
+  font-style: italic;
+}
+
+.share {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.share .bar {
+  flex: 1;
+  min-width: 48px;
+}
+
+.definitions summary {
+  cursor: pointer;
+  font-weight: 600;
+}
+
+.definitions dt {
+  font-weight: 600;
+  margin-top: 12px;
+}
+
+.definitions dd {
+  margin: 0;
+  color: var(--muted);
+}
+
+@media (min-width: 700px) {
+  .funnel-row {
+    grid-template-columns: 11rem 1fr 9rem;
+  }
+
+  .funnel-row .bar {
+    grid-column: auto;
+    grid-row: auto;
+  }
+
+  .funnel-value {
+    text-align: right;
+  }
+}

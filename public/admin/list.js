@@ -35,6 +35,7 @@ function renderForms(forms) {
           el('div', { class: 'form-card-links' }, [
             el('a', { href: `/admin/forms/${form.id}`, text: 'Конструктор' }),
             el('a', { href: `/admin/forms/${form.id}/responses`, text: `Ответы (${form.responseCount})` }),
+            el('a', { href: `/admin/forms/${form.id}/analytics`, text: 'Аналитика' }),
             form.status === 'published' ? el('a', { href: publicLink(form.id), target: '_blank', text: 'Открыть форму' }) : null,
           ]),
         ]),

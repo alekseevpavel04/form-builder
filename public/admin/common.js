@@ -14,7 +14,7 @@ export function publicLink(formId) {
   return `${location.origin}/f/${formId}`;
 }
 
-// The id is in the page address: /admin/forms/<id> or /admin/forms/<id>/responses.
+// The id is in the page address: /admin/forms/<id>, /admin/forms/<id>/responses and so on.
 export function formIdFromPath() {
   return decodeURIComponent(location.pathname.split('/')[3] || '');
 }
@@ -24,6 +24,7 @@ export function formHeader(form, active) {
   const tabs = [
     ['builder', 'Конструктор', `/admin/forms/${form.id}`],
     ['responses', 'Ответы', `/admin/forms/${form.id}/responses`],
+    ['analytics', 'Аналитика', `/admin/forms/${form.id}/analytics`],
   ];
   return el('header', { class: 'page-header' }, [
     el('a', { href: '/admin', class: 'back-link', text: '← Все формы' }),
