@@ -1,0 +1,19 @@
+node_modules/
+data/
+
+# local agent settings and working notes
+CLAUDE.local.md
+AGENTS.md
+.claude/
+orchestration/
+docs/DECISIONS.md
+
+# secrets (the service needs none)
+.env
+.env.*
+!.env.example
+*.pem
+
+*.log
+.DS_Store
+.vscode/
