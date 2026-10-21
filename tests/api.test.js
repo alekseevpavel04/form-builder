@@ -116,10 +116,10 @@ describe('forms', () => {
 
     const table = await call('GET', `/api/forms/${id}/responses`);
     assert.deepEqual(table.data.columns, [
-      { id: 'email', label: 'Email', removed: false },
-      { id: 'name', label: 'Имя и фамилия', removed: false },
-      { id: 'topics', label: 'Темы', removed: false },
-      { id: 'format', label: 'Формат', removed: true },
+      { id: 'email', type: 'email', label: 'Email', removed: false },
+      { id: 'name', type: 'text', label: 'Имя и фамилия', removed: false },
+      { id: 'topics', type: 'checkbox', label: 'Темы', removed: false },
+      { id: 'format', type: 'radio', label: 'Формат', removed: true },
     ]);
     assert.equal(table.data.responses[0].answers.format, 'Офис');
   });

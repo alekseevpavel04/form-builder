@@ -65,9 +65,9 @@ function responsesOf(store, form) {
 
 // Current fields in their order, then deleted fields that still have answers.
 export function responseColumns(form, responses) {
-  const columns = form.fields.map((f) => ({ id: f.id, label: f.label, removed: false }));
+  const columns = form.fields.map((f) => ({ id: f.id, type: f.type, label: f.label, removed: false }));
   for (const f of form.removedFields) {
-    if (responses.some((r) => Object.hasOwn(r.answers, f.id))) columns.push({ id: f.id, label: f.label, removed: true });
+    if (responses.some((r) => Object.hasOwn(r.answers, f.id))) columns.push({ id: f.id, type: f.type, label: f.label, removed: true });
   }
   return columns;
 }

@@ -518,9 +518,12 @@ select:focus,
   border-radius: var(--radius);
 }
 
+/* Separate borders: with collapsed ones the sticky first column loses its
+   borders while the table scrolls under it. */
 table.responses {
-  border-collapse: collapse;
-  width: 100%;
+  border-collapse: separate;
+  border-spacing: 0;
+  min-width: 100%;
   font-size: 0.95rem;
 }
 
@@ -530,15 +533,42 @@ table.responses {
   vertical-align: top;
   padding: 8px 12px;
   border-bottom: 1px solid var(--border);
-  min-width: 140px;
-  max-width: 360px;
-  white-space: pre-wrap;
-  overflow-wrap: anywhere;
 }
 
+/* Headers wrap between words only; breaking anywhere made one long label
+   a column of letter fragments and the whole header row tall. */
 .responses th {
+  min-width: 10em;
   background: var(--bg);
   font-weight: 600;
+}
+
+.responses td {
+  min-width: 8em;
+  white-space: pre-wrap;
+  overflow-wrap: break-word;
+}
+
+.responses td.long {
+  min-width: 24em;
+}
+
+/* The submit time stays in view while the manager scrolls sideways. */
+.responses th:first-child,
+.responses td:first-child {
+  position: sticky;
+  left: 0;
+  z-index: 1;
+  border-right: 1px solid var(--border);
+}
+
+.responses td:first-child {
+  background: var(--card);
+}
+
+/* On a phone the pinned column must leave room for the rest. */
+.responses th:first-child {
+  min-width: 0;
 }
 
 .responses th.removed {
@@ -547,6 +577,7 @@ table.responses {
 }
 
 .responses .nowrap {
+  min-width: 0;
   white-space: nowrap;
 }
 

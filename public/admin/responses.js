@@ -12,6 +12,22 @@ function cellText(value) {
   return String(value);
 }
 
+// An email or a phone number broken in the middle is hard to read and to copy,
+// so these stay on one line; long answers get room to wrap.
+const NOWRAP_TYPES = new Set(['email', 'phone', 'date', 'number']);
+
+function cellClass(column) {
+  if (NOWRAP_TYPES.has(column.type)) return 'nowrap';
+  if (column.type === 'textarea') return 'long';
+  return null;
+}
+
+// A header gets enough width to fit in about two lines. With one fixed width
+// a long question stood five lines tall and stretched the whole header row.
+function headerWidth(label) {
+  return `min-width: ${Math.min(Math.max(10, Math.ceil(label.length / 2.5)), 16)}em`;
+}
+
 function render({ form, columns, responses }) {
   document.title = `${form.title}: ответы`;
   const header = formHeader(form, 'responses');
@@ -28,12 +44,15 @@ function render({ form, columns, responses }) {
   const table = el('table', { class: 'responses' }, [
     el('thead', {}, el('tr', {}, [
       el('th', { scope: 'col', text: 'Отправлен' }),
-      ...columns.map((c) => el('th', { scope: 'col', class: c.removed ? 'removed' : null, text: c.removed ? `${c.label} (поле удалено)` : c.label })),
+      ...columns.map((c) => {
+        const label = c.removed ? `${c.label} (поле удалено)` : c.label;
+        return el('th', { scope: 'col', class: c.removed ? 'removed' : null, style: headerWidth(label), text: label });
+      }),
     ])),
     el('tbody', {}, responses.map((r) =>
       el('tr', {}, [
         el('td', { class: 'nowrap', text: formatDateTime(r.submittedAt) }),
-        ...columns.map((c) => el('td', { text: cellText(r.answers[c.id]) })),
+        ...columns.map((c) => el('td', { class: cellClass(c), text: cellText(r.answers[c.id]) })),
       ]),
     )),
   ]);
