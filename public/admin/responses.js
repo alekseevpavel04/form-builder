@@ -22,10 +22,11 @@ function cellClass(column) {
   return null;
 }
 
-// A header gets enough width to fit in about two lines. With one fixed width
-// a long question stood five lines tall and stretched the whole header row.
+// A header gets the width of its text, up to a limit, so most stay on one
+// line and only really long questions wrap. With one fixed width a long
+// question stood five lines tall and left an empty band under the others.
 function headerWidth(label) {
-  return `min-width: ${Math.min(Math.max(10, Math.ceil(label.length / 2.5)), 16)}em`;
+  return `min-width: ${Math.min(Math.max(11, Math.ceil(label.length * 0.62)), 24)}em`;
 }
 
 function render({ form, columns, responses }) {
