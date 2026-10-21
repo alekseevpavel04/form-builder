@@ -154,7 +154,7 @@ function checkDefinition(body, existing) {
   return form;
 }
 
-function newFormId(store) {
+export function newFormId(store) {
   for (;;) {
     let id = '';
     for (let i = 0; i < ID_LENGTH; i++) id += ID_ALPHABET[crypto.randomInt(ID_ALPHABET.length)];

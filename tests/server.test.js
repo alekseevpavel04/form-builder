@@ -35,11 +35,13 @@ describe('routing and static files', () => {
   });
 
   test('form pages answer 404 for an unknown form', async () => {
+    const demoId = app.store.forms[0].id;
     for (const [p, status] of [
-      ['/admin/forms/demo', 200],
-      ['/admin/forms/demo/responses', 200],
-      ['/admin/forms/demo/analytics', 200],
-      ['/f/demo', 200],
+      [`/admin/forms/${demoId}`, 200],
+      [`/admin/forms/${demoId}/responses`, 200],
+      [`/admin/forms/${demoId}/analytics`, 200],
+      [`/f/${demoId}`, 200],
+      ['/f/demo', 404],
       ['/admin/forms/nope', 404],
       ['/admin/forms/nope/responses', 404],
       ['/admin/forms/nope/analytics', 404],
@@ -101,7 +103,7 @@ describe('npm start entry point', () => {
 
     const forms = JSON.parse(await fsp.readFile(path.join(nested, 'forms.json'), 'utf8'));
     assert.equal(forms.length, 1);
-    assert.equal(forms[0].id, 'demo');
+    assert.match(forms[0].id, /^[a-z2-9]{8}$/, 'the demo form gets a random link like any other form');
   });
 
   test('busy port gives a readable message and exit code 1', async () => {
@@ -134,6 +136,7 @@ describe('npm start entry point', () => {
     const port = await freePort();
     const server = startServer({ PORT: String(port), DATA_DIR: dir });
     await server.waitFor(/Админка:/);
+    const [demo] = JSON.parse(await fsp.readFile(path.join(dir, 'forms.json'), 'utf8'));
 
     const acknowledged = [];
     let firstAck;
@@ -142,7 +145,7 @@ describe('npm start entry point', () => {
     const requests = Array.from({ length: 40 }, async (_, i) => {
       const sessionId = `session-kill-${i}`;
       try {
-        const res = await fetch(`http://127.0.0.1:${port}/api/public/forms/demo/responses`, {
+        const res = await fetch(`http://127.0.0.1:${port}/api/public/forms/${demo.id}/responses`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ sessionId, answers }),
@@ -166,7 +169,7 @@ describe('npm start entry point', () => {
 
     const restarted = startServer({ PORT: String(port), DATA_DIR: dir });
     await restarted.waitFor(/Админка:/);
-    const list = await fetch(`http://127.0.0.1:${port}/api/forms/demo/responses`);
+    const list = await fetch(`http://127.0.0.1:${port}/api/forms/${demo.id}/responses`);
     assert.equal(list.status, 200);
     assert.equal((await list.json()).responses.length, stored.length);
     await restarted.stop();

@@ -194,7 +194,7 @@ describe('form definition from the builder', () => {
   });
 
   test('demo form passes its own schema check', () => {
-    const demo = buildDemoForm('2026-10-20T00:00:00.000Z');
+    const demo = buildDemoForm('2026-10-20T00:00:00.000Z', 'demoform');
     const { form, errors } = validateFormDefinition(demo);
     assert.equal(errors, null);
     assert.deepEqual(form.fields, demo.fields);

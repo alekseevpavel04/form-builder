@@ -1,8 +1,12 @@
+import { newFormId } from './forms.js';
+
 // The demo form uses every field type, so a fresh install shows what the
 // builder can do without the manager creating anything first.
-export function buildDemoForm(now) {
+// Its id is random like any other form's: a fixed /f/demo would be the one
+// link on every install that anyone can guess.
+export function buildDemoForm(now, id) {
   return {
-    id: 'demo',
+    id,
     title: 'Стажировка в команде продукта',
     description: 'Заполнение займёт около трёх минут. Ответим на почту в течение недели.',
     status: 'published',
@@ -45,7 +49,7 @@ export function buildDemoForm(now) {
 
 export async function seedDemoForm(store) {
   if (store.forms.length > 0) return false;
-  store.forms.push(buildDemoForm(new Date().toISOString()));
+  store.forms.push(buildDemoForm(new Date().toISOString(), newFormId(store)));
   await store.save('forms');
   return true;
 }
